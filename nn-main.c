@@ -92,73 +92,84 @@ void trainN(){
 			for( j = 0; j < NUMHID; j++ ){
 				WeightHO[i][j] = 2.0 * ( frando() + 0.01 ) * smallwt;
 				DeltaWeightHO[i][j] = 0.0;
-			}
-
+		}
+//	}
+//	printf("Inicio for epoch\n");
+//	#pragma omp parallel num_threads(12)
+//	{
     		for( epoch = 0 ; epoch < 1000000 ; epoch++ ) {    // iterate weight updates
-		 	#pragma omp for private(p)
+			#pragma omp for private(p)
         		for( p = 0 ; p < NUMPAT ; p++ )   // randomize order of individuals
-            			ranpat[p] = p;
-	 		#pragma omp parallel for shared(ranpat) private(p)
+        	    		ranpat[p] = p;
+		 	#pragma omp for /*shared(ranpat)*/  private(p)
         		for( p = 0 ; p < NUMPAT ; p++) {
-                		int x = rando();
-                		int np = (x*x)%NUMPAT;
-                		int op = ranpat[p] ; ranpat[p] = ranpat[np] ; ranpat[np] = op ;
+        	        	int x = rando();
+        	        	int np = (x*x)%NUMPAT;
+        	        	int op = ranpat[p] ; ranpat[p] = ranpat[np] ; ranpat[np] = op ;
         		}
         		Error = BError = 0.0;
 
-        		printf("."); fflush(stdout);
-	     		#pragma omp for private(nb,np,i,j,k) reduction(+:Error,SumH,SumO,BError,SumDOW,WeightIH,WeightHO)
-        		for ( nb = 0; nb < NUMPAT/BSIZE; nb++) { // repeat for all batches
-            			BError = 0.0;
-                		for( np = nb*BSIZE ; np < (nb + 1)*BSIZE ; np++ ){//repeat for all the training patterns within the batch
-                			int p = ranpat[np];
-                			for( j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
-                       				SumH = 0.0;	
-                       				for( i = 0 ; i < NUMIN ; i++ ) 
+       			printf("."); fflush(stdout);
+     			//#pragma omp for private(nb,np,i,j,k) reduction(+:Error)//,/*SumH,SumO,BError,SumDOW,*/WeightIH,WeightHO)
+       			for ( nb = 0; nb < NUMPAT/BSIZE; nb++) { // repeat for all batches
+       				BError = 0.0;
+        	       		for( np = nb*BSIZE ; np < (nb + 1)*BSIZE ; np++ ){//repeat for all the training patterns within the batch
+        	       			int p = ranpat[np];
+					#pragma omp for private(i,j,SumH)
+        	       			for( j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
+        	       				SumH = 0.0;	
+        	       				for( i = 0 ; i < NUMIN ; i++ ) 
 							SumH += tSet[p][i] * WeightIH[j][i];
-                       				Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
-                   			}	
-                  			for( k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
-                       				SumO = 0.0;	
-                       				for( j = 0 ; j < NUMHID ; j++ ) 
+        	       				Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
+        	       			}
+					#pragma omp for private(j,k,SumO) reduction(+:BError)
+        	       			for( k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
+        	       				SumO = 0.0;	
+        	       				for( j = 0 ; j < NUMHID ; j++ ) 
 							SumO += Hidden[j] * WeightHO[k][j] ;
-                       				Output[k] = 1.0/(1.0 + exp(-SumO)) ;   // Sigmoidal Outputs
-                       				BError += 0.5 * (Target[p][k] - Output[k]) * (Target[p][k] - Output[k]) ;   // SSE
-                       				DeltaO[k] = (Target[p][k] - Output[k]) * Output[k] * (1.0 - Output[k]) ;   // Sigmoidal Outputs, SSE
-                			}
-                			for( j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
-                       				SumDOW = 0.0 ;	
-                		        	for( k = 0 ; k < NUMOUT ; k++ ) 
+        	       				Output[k] = 1.0/(1.0 + exp(-SumO)) ;   // Sigmoidal Outputs
+        	       				BError += 0.5 * (Target[p][k] - Output[k]) * (Target[p][k] - Output[k]) ;   // SSE
+        	       				DeltaO[k] = (Target[p][k] - Output[k]) * Output[k] * (1.0 - Output[k]) ;   // Sigmoidal Outputs, SSE
+        	       			}
+					#pragma omp for private(i,j,k,SumDOW)
+        	       			for( j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
+        	       				SumDOW = 0.0 ;	
+        	       		        	for( k = 0 ; k < NUMOUT ; k++ ) 
 							SumDOW += WeightHO[k][j] * DeltaO[k] ;
-                       				DeltaH[j] = SumDOW * Hidden[j] * (1.0 - Hidden[j]) ;
+        	       				DeltaH[j] = SumDOW * Hidden[j] * (1.0 - Hidden[j]) ;
 
-                       				for( i = 0 ; i < NUMIN ; i++ )
-                      					DeltaWeightIH[j][i] = eta * tSet[p][i] * DeltaH[j] + alpha * DeltaWeightIH[j][i];
-                   	 		}
-                    			for( k = 0 ; k < NUMOUT ; k ++ )    // update delta weights DeltaWeightHO
-                        			for( j = 0 ; j < NUMHID ; j++ )
-                            				DeltaWeightHO[k][j] = eta * Hidden[j] * DeltaO[k] + alpha * DeltaWeightHO[k][j];
-               	 		}//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                		Error += BError;
-                		for( j = 0 ; j < NUMHID ; j++ )     // update weights WeightIH
-  	                    		for( i = 0 ; i < NUMIN ; i++ )
-                        			WeightIH[j][i] += DeltaWeightIH[j][i] ;
+	               				for( i = 0 ; i < NUMIN ; i++ )
+        	      					DeltaWeightIH[j][i] = eta * tSet[p][i] * DeltaH[j] + alpha * DeltaWeightIH[j][i];
+        	       			}
+					#pragma omp for private(j,k)
+               				for( k = 0 ; k < NUMOUT ; k ++ )    // update delta weights DeltaWeightHO
+                       				for( j = 0 ; j < NUMHID ; j++ )
+                       					DeltaWeightHO[k][j] = eta * Hidden[j] * DeltaO[k] + alpha * DeltaWeightHO[k][j];
+       	 			}
+               			Error += BError;
+				#pragma omp for private(i,j)
+               			for( j = 0 ; j < NUMHID ; j++ )     // update weights WeightIH
+                   			for( i = 0 ; i < NUMIN ; i++ )
+                       				WeightIH[j][i] += DeltaWeightIH[j][i] ;
 
-                		for( k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
-	                      		for( j = 0 ; j < NUMHID ; j++ )
-                        			WeightHO[k][j] += DeltaWeightHO[k][j] ;
-            		}
-            		Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
-            		if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
-            		if( Error < 0.0004 ) {
-        			printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ; break ;  // stop learning when 'near enough'
-            		}
-    		}
-		freeTSet( NUMPAT, tSet );
-
-		printf( "END TRAINING\n" );
+				#pragma omp for private(j,k)
+               			for( k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
+                      			for( j = 0 ; j < NUMHID ; j++ )
+                       				WeightHO[k][j] += DeltaWeightHO[k][j] ;
+       			}
+       			Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
+       			if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+       			if( Error < 0.0004 ) {
+       				printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ; 
+				break ;  // stop learning when 'near enough'
+       			}
+		}//end for epoch
 	}
+	freeTSet( NUMPAT, tSet );
+
+	printf( "END TRAINING\n" );
 }
+
 
 void printRecognized( int p, float Output[] ){
 	int imax = 0;
@@ -177,6 +188,7 @@ void printRecognized( int p, float Output[] ){
    			printf( "\n" );
 	}
 }
+
 
 void runN(){
 	char **rSet;
@@ -219,7 +231,6 @@ void runN(){
 int main() {
 	clock_t start = clock();
 	trainN();
-	printf("Llama funcion runN()----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	runN();
 
 	clock_t end = clock();
@@ -229,5 +240,8 @@ int main() {
 }
 
 /*******************************************************************************/
+
+
+
 
 
