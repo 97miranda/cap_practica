@@ -1,0 +1,6 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH --job-name=HOSTNAME-SERIAL
+
+gcc -Ofast nn-main.c -o common -lm
+perf stat ./common
