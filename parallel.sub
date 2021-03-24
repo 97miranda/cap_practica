@@ -1,0 +1,7 @@
+#!/bin/bash -l
+#SBATCH --exclusive
+
+module load gcc/10.2.0
+
+gcc -fopenmp nn-main.c -o omp -lm
+perf stat ./omp
