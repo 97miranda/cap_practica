@@ -3,5 +3,8 @@
 
 module load gcc/10.2.0
 
-gcc -fopenmp nn-main.c -o omp -lm -Ofast
+export OMP_NUM_THREADS=8
+
+gcc -fopenmp -lm -Ofast nn-main.c common.c -o omp
+
 perf stat ./omp

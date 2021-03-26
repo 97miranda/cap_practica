@@ -37,7 +37,7 @@
 #include <limits.h>
 #include <omp.h>
 
-#include "common.c"
+#include "common.h"
 
 
 int total;
@@ -70,113 +70,125 @@ void trainN(){
  	float Hidden[NUMHID], Output[NUMOUT], DeltaO[NUMOUT], DeltaH[NUMHID];
  	float SumO, SumH, SumDOW;
 
+//	int n_th = omp_get_num_threads();
+
 	if( (tSet = loadPatternSet( NUMPAT, "optdigits.tra", 1 ) ) == NULL){
        		printf( "Loading Patterns: Error!!\n" );
 		exit( -1 );
 	}
 
-	int i,j,epoch,p,nb,np,k;
+//	int i,j,epoch,p,nb,np,k;
 
 	//omp_set_nested(1);
         //#pragma omp parallel num_threads(12)
         //{
 		//#pragma omp for private(i,j)
-		for( i = 0; i < NUMHID; i++ )
-			for( j = 0; j < NUMIN; j++ ){
+		for( int i = 0; i < NUMHID; i++ )
+			for( int j = 0; j < NUMIN; j++ ){
 				WeightIH[i][j] = 2.0 * ( frando() + 0.01 ) * smallwt;
 				DeltaWeightIH[i][j] = 0.0;
 			}
 
 		//#pragma omp for private(i,j)
-		for( i = 0; i < NUMOUT; i++)
-			for( j = 0; j < NUMHID; j++ ){
+		for( int i = 0; i < NUMOUT; i++)
+			for( int j = 0; j < NUMHID; j++ ){
 				WeightHO[i][j] = 2.0 * ( frando() + 0.01 ) * smallwt;
 				DeltaWeightHO[i][j] = 0.0;
 			}
 //	}
 //	printf("Inicio for epoch\n");
-	#pragma omp parallel num_threads(12)
+	#pragma omp parallel //num_threads(n_th)
 	{
-    		for( epoch = 0 ; epoch < 1000000 ; epoch++ ) {    // iterate weight updates
-			#pragma omp for private(p)
-        		for( p = 0 ; p < NUMPAT ; p++ )   // randomize order of individuals
+		printf("Nº threads: %d\n",omp_get_num_threads());
+    		for( int epoch = 0 ; epoch < 1000000 ; epoch++ ) {    // iterate weight updates
+			//#pragma omp parallel for num_threads(12) private(p) //for private(p)
+			#pragma omp single
+        		for( int p = 0 ; p < NUMPAT ; p++ )   // randomize order of individuals
         	    		ranpat[p] = p;
 		 	//#pragma omp single
-        		for( p = 0 ; p < NUMPAT ; p++) {
+		 	#pragma omp single
+        		for( int p = 0 ; p < NUMPAT ; p++) {
         	        	int x = rando();
         	        	int np = (x*x)%NUMPAT;
         	        	int op = ranpat[p] ; ranpat[p] = ranpat[np] ; ranpat[np] = op ;
         		}
-			//#pragma omp master
+			#pragma omp single
         		Error = BError = 0.0;
 			//#pragma omp barrier
-
+			//#pragma omp parallel num_threads(12)
+			//{
        			printf("."); fflush(stdout);
 
-       			for ( nb = 0; nb < NUMPAT/BSIZE; nb++) { // repeat for all batches
+       			for ( int nb = 0; nb < NUMPAT/BSIZE; nb++) { // repeat for all batches
        				BError = 0.0;
-        	       		for( np = nb*BSIZE ; np < (nb + 1)*BSIZE ; np++ ){//repeat for all the training patterns within the batch
+        	       		for(int  np = nb*BSIZE ; np < (nb + 1)*BSIZE ; np++ ){//repeat for all the training patterns within the batch
         	       			int p = ranpat[np];
-					#pragma omp for private(i,j,SumH)
-        	       			for( j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
-        	       				SumH = 0.0;	
-        	       				for( i = 0 ; i < NUMIN ; i++ ) 
+					//printf("Thread %d,valor nb %d, valor np %d,  valor p %d\n", omp_get_thread_num(),nb,np,p);
+					#pragma omp for private(/*i,j,*/SumH)
+        	       			for(int j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
+        	       				SumH = 0.0;
+        	       				for( int i = 0 ; i < NUMIN ; i++ ) 
 							SumH += tSet[p][i] * WeightIH[j][i];
         	       				Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
         	       			}
-					#pragma omp for private(j,k,SumO) reduction(+:BError)
-        	       			for( k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
+					//printf("end pragma 1\n");
+					//printf("Thread %d,valor nb %d, valor np %d,  valor p %d, valor i %d, valor j %d\n", omp_get_thread_num(),nb,np,p,i,j);
+					#pragma omp for private(/*j,k,*/SumO) reduction(+:BError)
+        	       			for(int k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
         	       				SumO = 0.0;	
-        	       				for( j = 0 ; j < NUMHID ; j++ ) 
+        	       				for( int j = 0 ; j < NUMHID ; j++ ) 
 							SumO += Hidden[j] * WeightHO[k][j] ;
         	       				Output[k] = 1.0/(1.0 + exp(-SumO)) ;   // Sigmoidal Outputs
         	       				BError += 0.5 * (Target[p][k] - Output[k]) * (Target[p][k] - Output[k]) ;   // SSE
         	       				DeltaO[k] = (Target[p][k] - Output[k]) * Output[k] * (1.0 - Output[k]) ;   // Sigmoidal Outputs, SSE
         	       			}
-					#pragma omp for private(i,j,k,SumDOW)
-        	       			for( j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
+					#pragma omp for private(/*i,j,k,*/SumDOW)
+        	       			for(int  j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
         	       				SumDOW = 0.0 ;	
-        	       		        	for( k = 0 ; k < NUMOUT ; k++ ) 
+        	       		        	for(int k = 0 ; k < NUMOUT ; k++ ) 
 							SumDOW += WeightHO[k][j] * DeltaO[k] ;
         	       				DeltaH[j] = SumDOW * Hidden[j] * (1.0 - Hidden[j]) ;
 
-	               				for( i = 0 ; i < NUMIN ; i++ )
+	               				for(int i = 0 ; i < NUMIN ; i++ )
         	      					DeltaWeightIH[j][i] = eta * tSet[p][i] * DeltaH[j] + alpha * DeltaWeightIH[j][i];
         	       			}
-					#pragma omp for private(j,k)
-               				for( k = 0 ; k < NUMOUT ; k ++ )    // update delta weights DeltaWeightHO
-                       				for( j = 0 ; j < NUMHID ; j++ )
+					#pragma omp for //private(j,k)
+               				for( int k = 0 ; k < NUMOUT ; k ++ )    // update delta weights DeltaWeightHO
+                       				for(int  j = 0 ; j < NUMHID ; j++ )
                        					DeltaWeightHO[k][j] = eta * Hidden[j] * DeltaO[k] + alpha * DeltaWeightHO[k][j];
 				}
 
-				//#pragma omp single//master
+				#pragma omp single//master
                			Error += BError;
 				//#pragma omp barrier
 
-				#pragma omp for private(i,j)
-               			for( j = 0 ; j < NUMHID ; j++ )     // update weights WeightIH
-					for(  i = 0 ; i < NUMIN ; i++ )
+				#pragma omp for //private(i,j)
+               			for(int  j = 0 ; j < NUMHID ; j++ )     // update weights WeightIH
+					for(int  i = 0 ; i < NUMIN ; i++ )
 						WeightIH[j][i] += DeltaWeightIH[j][i] ;
 
-				#pragma omp for private(j,k)
-               			for( k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
-                      			for( j = 0 ; j < NUMHID ; j++ )
+				#pragma omp for //private(j,k)
+               			for( int k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
+                      			for(int j = 0 ; j < NUMHID ; j++ )
                        				WeightHO[k][j] += DeltaWeightHO[k][j] ;
        			}
-			//#pragma omp single // master
-			//{
-       			Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
-       			if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+			//}//end parallel
+			#pragma omp single
+			{
+       				Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
+       				if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+			}
 			if( Error < 0.0004 ) {
                                	printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
 				break;
                         }
-			//}
+			//}//end pragma omp single
 			//#pragma omp barrier
 
 			//if( Error < 0.0004 ) {
 			//	break ;  // stop learning when 'near enough'
        			//}
+       			//}//end parallel
 		}//end for epoch
 	}//end parallel
 	freeTSet( NUMPAT, tSet );
@@ -189,18 +201,14 @@ void printRecognized( int p, float Output[] ){
 	int imax = 0;
 	int i,k;
 
-	//#pragma omp parallel num_threads(12)
-	//{
-	 	#pragma omp for private(i)
-		for( i = 1; i < NUMOUT; i++)
-			if ( Output[i] > Output[imax] ) imax = i;
-		printf( "El patró %d sembla un %c\t i és un %d", p, '0' + imax, Validation[p] );
-		if( imax == Validation[p] ) total++;
-		#pragma omp for private(k)
-    		for( k = 0 ; k < NUMOUT ; k++ )
-        		printf( "\t%f\t", Output[k] ) ;
-   		printf( "\n" );
-	//}
+	for( i = 1; i < NUMOUT; i++)
+		if ( Output[i] > Output[imax] ) imax = i;
+	printf( "El patró %d sembla un %c\t i és un %d", p, '0' + imax, Validation[p] );
+	if( imax == Validation[p] ) 
+		total++;
+	for( k = 0 ; k < NUMOUT ; k++ )
+       		printf( "\t%f\t", Output[k] ) ;
+	printf( "\n" );
 }
 
 
@@ -216,26 +224,22 @@ void runN(){
 
 	float Hidden[NUMHID], Output[NUMOUT];
 
-	#pragma omp parallel num_threads(12)
-	{
-	 	#pragma omp for private(p,i,j)
-    		for( p = 0 ; p < NUMRPAT ; p++ ) {    // repeat for all the recognition patterns
-        		for( j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
-            			float SumH = 0.0;
-            			for( i = 0 ; i < NUMIN ; i++ ) 
-					SumH += rSet[p][i] * WeightIH[j][i];
-            			Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
-        		}
+  	for( p = 0 ; p < NUMRPAT ; p++ ) {    // repeat for all the recognition patterns
+        	for( j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
+        		float SumH = 0.0;
+        		for( i = 0 ; i < NUMIN ; i++ ) 
+				SumH += rSet[p][i] * WeightIH[j][i];
+        		Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
+        	}
 
-        		for( k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations
-            			float SumO = 0.0;
-            			for( j = 0 ; j < NUMHID ; j++ ) 
-					SumO += Hidden[j] * WeightHO[k][j] ;
-            			Output[k] = 1.0/(1.0 + exp( -SumO )) ;   // Sigmoidal Outputs
-        		}
-        		printRecognized( p, Output );
-    		}
-	}
+        	for( k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations
+        		float SumO = 0.0;
+        		for( j = 0 ; j < NUMHID ; j++ ) 
+				SumO += Hidden[j] * WeightHO[k][j] ;
+        		Output[k] = 1.0/(1.0 + exp( -SumO )) ;   // Sigmoidal Outputs
+        	}
+        	printRecognized( p, Output );
+    	}
 
 	printf( "\nTotal encerts = %d\n", total );
 
@@ -244,11 +248,8 @@ void runN(){
 
 int main() {
 	clock_t start = clock();
-	printf("Llama trainN--------------------------------------------------------------\n");
 	trainN();
-	printf("Termina trainN y empieza runN---------------------------------------------\n");
 	runN();
-	printf("Termina runN--------------------------------------------------------------\n");
 
 	clock_t end = clock();
 	printf( "\n\nGoodbye! (%f sec)\n\n", (end-start)/(1.0*CLOCKS_PER_SEC) ) ;
