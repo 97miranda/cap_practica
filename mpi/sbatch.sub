@@ -1,0 +1,20 @@
+#!/bin/bash
+#SBATCH --job-name=mpi_exec
+#SBATCH --output=mpi_%j.txt
+#SBATCH -N 1 #nº nodes
+#SBATCH -n 12 #nº task
+##SBATCH --distribution=cyclic
+#SBATCH --partition=nodo.q
+#SBATCH --exclusive
+
+hostname
+module unload gcc/8.2.0
+module load gcc/10.2.0
+module load openmpi/3.0.0
+
+#sleep 10
+
+mpicc -Ofast -lm nn-main.c common.c -o n
+
+mpirun ./n
+
