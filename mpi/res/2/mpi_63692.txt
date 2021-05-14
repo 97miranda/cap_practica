@@ -1,0 +1,28 @@
+clus09.hpc.local
+..[clus09:21838] *** Process received signal ***
+[clus09:21838] Signal: Segmentation fault (11)
+[clus09:21838] Signal code: Address not mapped (1)
+[clus09:21838] Failing at address: 0xfffffffd630e23a8
+[clus09:21839] *** Process received signal ***
+[clus09:21839] Signal: Segmentation fault (11)
+[clus09:21839] Signal code: Address not mapped (1)
+[clus09:21839] Failing at address: 0xfffffffd621d6358
+[clus09:21838] [ 0] /lib64/libpthread.so.0(+0xf370)[0x7fe26c522370]
+[clus09:21838] [ 1] ./n[0x40114a]
+[clus09:21838] [ 2] ./n[0x400cd0]
+[clus09:21838] [ 3] /lib64/libc.so.6(__libc_start_main+0xf5)[0x7fe26c173b35]
+[clus09:21838] [ 4] ./n[0x400d4c]
+[clus09:21838] *** End of error message ***
+[clus09:21839] [ 0] /lib64/libpthread.so.0(+0xf370)[0x7fe0e9d75370]
+[clus09:21839] [ 1] ./n[0x40114a]
+[clus09:21839] [ 2] ./n[0x400cd0]
+[clus09:21839] [ 3] /lib64/libc.so.6(__libc_start_main+0xf5)[0x7fe0e99c6b35]
+[clus09:21839] [ 4] ./n[0x400d4c]
+[clus09:21839] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun noticed that process rank 1 with PID 21839 on node clus09 exited on signal 11 (Segmentation fault).
+--------------------------------------------------------------------------
