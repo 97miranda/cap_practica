@@ -1,0 +1,18 @@
+clus09.hpc.local
+.[clus09:22307] *** Process received signal ***
+[clus09:22307] Signal: Segmentation fault (11)
+[clus09:22307] Signal code: Address not mapped (1)
+[clus09:22307] Failing at address: 0x1d4ba2460
+[clus09:22307] [ 0] /lib64/libpthread.so.0(+0xf370)[0x7f5a7217e370]
+[clus09:22307] [ 1] ./n[0x40114a]
+[clus09:22307] [ 2] ./n[0x400cd0]
+[clus09:22307] [ 3] /lib64/libc.so.6(__libc_start_main+0xf5)[0x7f5a71dcfb35]
+[clus09:22307] [ 4] ./n[0x400d4c]
+[clus09:22307] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun noticed that process rank 0 with PID 22307 on node clus09 exited on signal 11 (Segmentation fault).
+--------------------------------------------------------------------------
