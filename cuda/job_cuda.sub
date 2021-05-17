@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+#SBATCH --job-name=GPU
+#SBATCH -N 1 # number of nodes
+##SBATCH -n 1 # number of cores
+#SBATCH --partition=cuda.q
+#SBATCH --gres=gpu:GeForceRTX3080:1 #aolin24
+
+#hostname
+#/usr/local/cuda/samples/1_Utilities/deviceQuery/deviceQuery
+
+echo -e "\nLoading Modules!\n"
+module add cuda/11.2
+module load nvidia-hpc-sdk/21.2
+
+echo -e "\nCompilant\n"
+#Dividim la compilació en 3 fases:
+
+#1. compilar codi font que no és de CUDA
+g++ -Ofast -c common.c -o common.o 
+
+#2. compilar el codi que conté la part de CUDA (canviar l'extensió del fitxer nn-main.c a nn-main.cu)
+nvcc -c nn-main.cu -o nn-main.o
+
+#3. linkar tots els fitxer objectes i les llibreries
+g++ -Ofast -w -zmuldefs -o nn-main common.o nn-main.o -L/usr/local/cuda/lib64 -lcudart -lrt -lm
+
+echo -e "\nExecutant\n"
+if [ "$1" = "-prof" ]; then
+	echo "Nvidia profiler"
+	nsys nvprof --print-gpu-trace ./nn-main
+else 
+	./nn-main
+fi
