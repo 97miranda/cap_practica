@@ -74,7 +74,6 @@ void trainN(){
         MPI_Comm_rank( MPI_COMM_WORLD, &rank);
         MPI_Comm_size( MPI_COMM_WORLD, &procs);
 
-//	int err_count;
 	float temp_BError;
 
 	if( (tSet = loadPatternSet( NUMPAT, "optdigits.tra", 1 ) ) == NULL){
@@ -109,40 +108,21 @@ void trainN(){
                		int op = ranpat[p] ; ranpat[p] = ranpat[np] ; ranpat[np] = op ;
         	}
         	Error = BError = 0.0;
-//		err_count = 0;
 
-		//-----------------------------MPI--------------------------------------------------------------------------
-		//for (int i = 0; i < procs; i++)
-		//	MPI_Send(&Error, 1, MPI_FLOAT, epoch, 0, MPI_COMM_WORLD);
-
-//		MPI_Scatter(&buffer_send, );
-
-//		if (rank == 0)
         	printf("."); fflush(stdout);
 
-//        	for (int nb = 0; nb < NUMPAT/BSIZE; nb++) { // repeat for all batches
 		for (int nb = (rank*nb_size) + offset_nb_init; nb < ((rank + 1) * nb_size) + offset_nb; nb++) {
         		BError = 0.0;
 
-//			MPI_Scatter();
-
                		for(int np = nb*BSIZE ; np < (nb + 1)*BSIZE ; np++ ){//repeat for all the training patterns within the batch
                			int p = ranpat[np];
-				//if(rank != 0) {
-				//	MPI_Send(buffer, 1, MPI_FLOAT, rank, 0, MPI_COMM_WORLD);
               			for(int j = 0 ; j < NUMHID ; j++ ) {    // compute hidden unit activations
                				SumH = 0.0;	
                				for(int i = 0 ; i < NUMIN ; i++ ) 
 						SumH += tSet[p][i] * WeightIH[j][i];
                				Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
                			}
-				//}
-				//else{			
-				//	MPI_Recv(buffer, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-				//}
 
-				//if(rank != 0) {
-				//	MPI_Send(buffer, 1, MPI_FLOAT, rank, 0, MPI_COMM_WORLD);
               			for(int k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
                				SumO = 0.0;	
                				for(int j = 0 ; j < NUMHID ; j++ ) 
@@ -151,55 +131,24 @@ void trainN(){
                				BError += 0.5 * (Target[p][k] - Output[k]) * (Target[p][k] - Output[k]) ;   // SSE
                				DeltaO[k] = (Target[p][k] - Output[k]) * Output[k] * (1.0 - Output[k]) ;   // Sigmoidal Outputs, SSE
                			}
-				//}
-				//else{
-				//	MPI_Recv(buffer, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-				//}
 
-				if(rank != 0) {
-				//	MPI_Send(buffer, 1, MPI_FLOAT, rank, 0, MPI_COMM_WORLD);
-               				for(int j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
-               					SumDOW = 0.0 ;	
-               		        		for(int k = 0 ; k < NUMOUT ; k++ ) 
-							SumDOW += WeightHO[k][j] * DeltaO[k] ;
-               					DeltaH[j] = SumDOW * Hidden[j] * (1.0 - Hidden[j]) ;
-               					for(int i = 0 ; i < NUMIN ; i++ )
-               						DeltaWeightIH[j][i] = eta * tSet[p][i] * DeltaH[j] + alpha * DeltaWeightIH[j][i];
-               	 			}
-				}
-				//else{
-				//	MPI_Recv(buffer, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-				//}
+               			for(int j = 0 ; j < NUMHID ; j++ ) {     // update delta weights DeltaWeightIH
+               				SumDOW = 0.0 ;	
+               		       		for(int k = 0 ; k < NUMOUT ; k++ ) 
+						SumDOW += WeightHO[k][j] * DeltaO[k] ;
+               				DeltaH[j] = SumDOW * Hidden[j] * (1.0 - Hidden[j]) ;
+               				for(int i = 0 ; i < NUMIN ; i++ )
+               					DeltaWeightIH[j][i] = eta * tSet[p][i] * DeltaH[j] + alpha * DeltaWeightIH[j][i];
+               	 		}
 
-				//if(rank != 0) {
-				//	MPI_Send(buffer, 1, MPI_FLOAT, rank, 0, MPI_COMM_WORLD);
                			for(int k = 0 ; k < NUMOUT ; k ++ )    // update delta weights DeltaWeightHO
                        			for(int j = 0 ; j < NUMHID ; j++ )
                        				DeltaWeightHO[k][j] = eta * Hidden[j] * DeltaO[k] + alpha * DeltaWeightHO[k][j];
-				//}
-				//else{
-				//	MPI_Recv(buffer, 1, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-				//}
              		}
 
 			temp_BError = 0.0;
 			MPI_Allreduce(&BError, &temp_BError, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-
-			//MPI_Barrier(MPI_COMM_WORLD);
              		Error += temp_BError/procs;
-//			err_count++;
-//			Error += (BError/procs);
-//			MPI_Bcast(&Error, 1, MPI_FLOAT, rank, MPI_COMM_WORLD);
-
-//                      if(rank == 0)
-//				MPI_Reduce(MPI_IN_PLACE, &Error,1, MPI_FLOAT, MPI_SUM, rank, MPI_COMM_WORLD);
-//			MPI_Allreduce(&Error, &BError, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Allreduce(MPI_IN_PLACE, &Error, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			Error = Error/(procs*procs); 
-//			MPI_Allreduce(MPI_IN_PLACE, &Error, &BError, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Reduce(MPI_IN_PLACE, &Error,1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-
-//			MPI_Allreduce(MPI_IN_PLACE, &err_count, 1, MPI_INT, MPI_SUM; MPI_COMM_WORLD);
 			
 			MPI_Allreduce(MPI_IN_PLACE, &WeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
                         MPI_Allreduce(MPI_IN_PLACE, &WeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);			
@@ -212,56 +161,22 @@ void trainN(){
 
                		for(int k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
 	               		for(int j = 0 ; j < NUMHID ; j++ ){
-					 WeightHO[k][j] /= procs ;
+					WeightHO[k][j] /= procs ;
                        			WeightHO[k][j] += DeltaWeightHO[k][j] ;
 				}
-
-//			if(rank == 0)
-//				MPI_Reduce(MPI_IN_PLACE, &WeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-//			MPI_Allreduce(&WeightIH, &DeltaWeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Allreduce(MPI_IN_PLACE, &WeightIH, &DeltaWeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Reduce(MPI_IN_PLACE, &WeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-
-//			MPI_Allreduce(MPI_IN_PLACE, &WeightIH, NUMHID * NUMIN, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Allreduce(MPI_IN_PLACE, &WeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-
-//			if(rank == 0)
-//				MPI_Reduce(MPI_IN_PLACE, &WeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-//			MPI_Allreduce(&WeightHO, &DeltaWeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Allreduce(MPI_IN_PLACE, &WeightHO, &DeltaWeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-//			MPI_Reduce(MPI_IN_PLACE, &WeightHO, NUMHID * NUMOUT, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-
-//			err_count++;
-//			MPI_Allreduce(&err_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
 			MPI_Barrier(MPI_COMM_WORLD);
             	}
 
-//			MPI_Allreduce(MPI_IN_PLACE, &err_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-//		MPI_Allreduce(MPI_IN_PLACE, &err_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-//		if (rank == 0){
-//			Error = Error/err_count;
-//			Error = Error/( ((NUMPAT/BSIZE)*BSIZE) * err_count);  
-          		Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
-//			Error = Error/err_count;
-            		if( !(epoch%100) ) 
-				printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
-            		if( Error < 0.0004 ) {
-        			printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ; break ;  // stop learning when 'near enough'
-       			}
-//		}
-		//MPI_Recv(&Error, 1, MPI_FLOAT, epoch, 0, MPI_COMM_WORLD, &status);
-//		MPI_Barrier(MPI_COMM_WORLD);
+          	Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
+            	if( !(epoch%100) ) 
+			printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+            	if( Error < 0.0004 ) {
+        		printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ; break ;  // stop learning when 'near enough'
+       		}
     	}
 
-	//gather aqui??
-
-	MPI_Finalize();//--------------------------------------------------------------------------------
-
+	MPI_Finalize();
 	freeTSet( NUMPAT, tSet );
-
 	printf( "END TRAINING\n" );
 }
 

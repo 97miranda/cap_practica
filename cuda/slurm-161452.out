@@ -1,0 +1,95 @@
+
+Loading Modules!
+
+
+Compilant
+
+g++: error: common.c: No existe el fichero o el directorio
+g++: error fatal: no hay ficheros de entrada
+compilación terminada.
+nn-main.cu(72): error: expression must have arithmetic or enum type
+
+nn-main.cu(91): error: "DeltaO" has already been declared in the current scope
+
+nn-main.cu(91): error: "DeltaH" has already been declared in the current scope
+
+nn-main.cu(96): warning: conversion from a string literal to "char *" is deprecated
+
+nn-main.cu(140): error: identifier "d_p" is undefined
+
+nn-main.cu(141): error: identifier "d_tSet" is undefined
+
+nn-main.cu(142): error: identifier "d_WeighIH" is undefined
+
+nn-main.cu(145): error: argument of type "int" is incompatible with parameter of type "const void *"
+
+nn-main.cu(147): error: identifier "d_WeightIH" is undefined
+
+nn-main.cu(147): error: identifier "Weight" is undefined
+
+nn-main.cu(164): error: expression must have pointer-to-object type
+
+nn-main.cu(170): error: expression must have pointer-to-object type
+
+nn-main.cu(171): error: expression must have pointer-to-object type
+
+nn-main.cu(173): error: expression must have pointer-to-object type
+
+nn-main.cu(178): error: expression must have pointer-to-object type
+
+nn-main.cu(90): warning: variable "DeltaO" was declared but never referenced
+
+nn-main.cu(90): warning: variable "DeltaH" was declared but never referenced
+
+nn-main.cu(91): warning: variable "d_Output" was declared but never referenced
+
+nn-main.cu(92): warning: variable "SumH" was declared but never referenced
+
+nn-main.cu(200): error: this declaration has no storage class or type specifier
+
+nn-main.cu(200): error: declaration is incompatible with "void freeTSet(int, char **)"
+(57): here
+
+nn-main.cu(200): error: identifier "tSet" is undefined
+
+nn-main.cu(200): error: too many initializer values
+
+nn-main.cu(202): error: this declaration has no storage class or type specifier
+
+nn-main.cu(202): error: declaration is incompatible with "int printf(const char *, ...)"
+/soft/nvidia-hpc-sdk-2021-21.2/Linux_x86_64/21.2/cuda//include/crt/common_functions.h(153): here
+
+nn-main.cu(202): error: a value of type "const char *" cannot be used to initialize an entity of type "int"
+
+nn-main.cu(203): error: expected a declaration
+
+nn-main.cu(242): warning: parsing restarts here after previous syntax error
+
+nn-main.cu(243): error: expected a declaration
+
+nn-main.cu(245): error: identifier "k" is undefined
+
+nn-main.cu(245): error: identifier "SumO" is undefined
+
+nn-main.cu(246): error: expected a declaration
+
+nn-main.cu(248): error: expected a declaration
+
+nn-main.cu(252): error: this declaration has no storage class or type specifier
+
+nn-main.cu(252): error: variable "freeTSet" has already been defined
+
+nn-main.cu(252): error: identifier "rSet" is undefined
+
+nn-main.cu(252): error: too many initializer values
+
+nn-main.cu(253): error: expected a declaration
+
+At end of source: warning: parsing restarts here after previous syntax error
+
+32 errors detected in the compilation of "nn-main.cu".
+g++: error: nn-main.o: No existe el fichero o el directorio
+
+Executant
+
+/var/spool/slurmd/job161452/slurm_script: línea 33: ./nn-main: No existe el fichero o el directorio

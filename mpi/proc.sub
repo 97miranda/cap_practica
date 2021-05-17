@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=mpi_exec
 #SBATCH --output=mpi_%j.txt
-#SBATCH -N 4 #nº nodes
-#SBATCH -n 48 #nº task
+#SBATCH -N 1 #nº nodes
+#SBATCH -n 2 #nº task
 ##SBATCH --distribution=cyclic
 #SBATCH --partition=nodo.q
 #SBATCH --exclusive
