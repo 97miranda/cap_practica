@@ -60,7 +60,7 @@ void freeTSet( int np, char **tset ){
 	free(tset);
 }
 
-__global__ void Kernel_SumH(int* d_p, char* d_tSet, float* d_WeightIH, float* d_Hidden)
+__global__ void Kernel_SumH(int d_p, char* d_tSet, float* d_WeightIH, float* d_Hidden)
 {
 	__shared__ float d_SumH[NUMIN];
 	
@@ -70,7 +70,10 @@ __global__ void Kernel_SumH(int* d_p, char* d_tSet, float* d_WeightIH, float* d_
 
 	d_SumH[d_i] = 0.0;
 
-	d_SumH[d_i] = d_tSet[d_p * d_bsize + d_i] * d_WeightIH[d_j * d_bsize + d_i];
+	int tSet_pos = (d_p * d_bsize) + d_i;
+	int Weight_pos = (d_j * d_bsize) + d_i;
+
+	d_SumH[d_i] = d_tSet[tSet_pos] * d_WeightIH[Weight_pos];
 
 	for (unsigned int stride = d_bsize/2; stride >= 1; stride >>=1)
 	{
@@ -79,7 +82,10 @@ __global__ void Kernel_SumH(int* d_p, char* d_tSet, float* d_WeightIH, float* d_
 			d_SumH[d_i] += d_SumH[d_i + stride];
 	}
 
-	d_Hidden[d_j] = 1.0/(1.0 + exp( -d_SumH[0] ));
+	if (d_i == 0){
+		__syncthreads();
+		d_Hidden[d_j] = 1.0/(1.0 + exp( -d_SumH[0] ));
+	}
 }
 
 void trainN(){
@@ -89,12 +95,24 @@ void trainN(){
 	float Error, BError, eta = 0.3, alpha = 0.5, smallwt = 0.22;
 	int ranpat[NUMPAT];
  	float Hidden[NUMHID], Output[NUMOUT], DeltaO[NUMOUT], DeltaH[NUMHID];
-	float* d_Hidden, d_Output, DeltaO, DeltaH;
- 	float SumO, SumH, SumDOW;
-	
+ 	float SumO,/* SumH,*/ SumDOW;
+
+	int size_tSet = NUMPAT * 1024 * sizeof(char**);
+	int size_WeightIH =  NUMHID * NUMIN * sizeof(float);
+	int size_Hidden_out = NUMHID * sizeof(float);
 	char* d_tSet;
-	int* d_p;
-	float* d_WeightIH, d_Hidden;
+	float* d_WeightIH;
+	float* d_Hidden_out;
+
+	cudaMalloc((char ****) &d_tSet, size_tSet);
+	cudaMalloc((float **) &d_WeightIH, size_WeightIH);
+	cudaMalloc((float **) &d_Hidden_out, size_Hidden_out);
+
+//	for (int i = 0; i < NUMPAT; i++){
+//		int pos_tSet = i * 1024;
+		cudaMemcpy(d_tSet, tSet, size_tSet, cudaMemcpyHostToDevice);
+//		cudaMemcpy2D(d_tSet, pos_tSet, tSet, pos_tSet, 1024, NUMPAT, cudaMemcpyHostToDevice);
+//	}
 
 	if( (tSet = loadPatternSet( NUMPAT, "optdigits.tra", 1 ) ) == NULL){
        		printf( "Loading Patterns: Error!!\n" );
@@ -138,25 +156,26 @@ void trainN(){
         	       			Hidden[j] = 1.0/(1.0 + exp( -SumH )) ;
         	       		}*/
 
-				int size_tSet = NUMPAT * 1024 * sizeof(char);
+//				int size_tSet = NUMPAT * 1024 * sizeof(char);
 
-				cudaMalloc((void **) &d_p, 1);
-				cudaMalloc((void **) &d_tSet, size_tSet);
-				cudaMalloc((void **) &d_WeighIH, NUMHID * NUMIN);
-				cudaMalloc((void **) &d_Hidden, NUMHID);
+//				char* d_tSet;
+//				float* d_WeightIH;
+//				float* d_Hidden_out;
 
-				cudaMemcpy(d_p, p, 1, cudaMemcpyHostToDevice);
-				cudaMemcpy(d_tSet, tSet, sizeof(tSet), cudaMemcpyHostToDevice);
-				cudaMemcpy(d_WeightIH, Weight, NUMHID * NUMIN, cudaMemcpyHostToDevice);
+//				cudaMalloc((char **) &d_tSet, size_tSet);
+//				cudaMalloc((float **) &d_WeightIH, NUMHID * NUMIN * sizeof(float));
+//				cudaMalloc((float **) &d_Hidden_out, NUMHID * sizeof(float));
 
-				Kernel_SumH<<< NUMHID, NUMIN >>>(d_p, d_tSet, d_WeightIH, d_Hidden);
+//				cudaMemcpy(d_tSet, tSet, size_tSet, cudaMemcpyHostToDevice);
+				cudaMemcpy(d_WeightIH, WeightIH, size_WeightIH /*NUMHID * NUMIN*/, cudaMemcpyHostToDevice);
 
-				cudaMemcpy(Hidden, d_Hidden, NUMHID, cudaMemcpyDeviceToHost);
+				Kernel_SumH<<< NUMHID, NUMIN >>>(p, d_tSet, d_WeightIH, d_Hidden_out);
 
-				cudaFree(d_p);
-				cudaFree(d_tSet);
-				cudaFree(d_WeightIH);
-				cudaFree(d_Hidden);
+				cudaMemcpy(Hidden, d_Hidden_out, size_Hidden_out /*NUMHID*/, cudaMemcpyDeviceToHost);
+
+//				cudaFree(d_tSet);
+//				cudaFree(d_WeightIH);
+//				cudaFree(d_Hidden_out);
 
         	 	      	for(int k = 0 ; k < NUMOUT ; k++ ) {    // compute output unit activations and errors
        					SumO = 0.0;	
@@ -190,17 +209,20 @@ void trainN(){
                		for( int k = 0 ; k < NUMOUT ; k ++ )    // update weights WeightHO
                 		for(int j = 0 ; j < NUMHID ; j++ )
                        			WeightHO[k][j] += DeltaWeightHO[k][j] ;
-       			}
+       		}
 
-       			Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
-       			if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
-			if( Error < 0.0004 ) {
-                               	printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
-				break;
-                        }
-		}
+       		Error = Error/((NUMPAT/BSIZE)*BSIZE);	//mean error for the last epoch 		
+       		if( !(epoch%100) ) printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+		if( Error < 0.0004 ) {
+                       	printf( "\nEpoch %-5d :   Error = %f \n", epoch, Error ) ;
+			break;
+                }
 	}
+
 	freeTSet( NUMPAT, tSet );
+	cudaFree(d_tSet);
+	cudaFree(d_WeightIH);
+	cudaFree(d_Hidden_out);
 
 	printf( "END TRAINING\n" );
 }
