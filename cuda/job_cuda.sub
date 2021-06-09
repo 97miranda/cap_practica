@@ -23,7 +23,7 @@ g++ -Ofast -c common.c -o common.o
 nvcc -c nn-main.cu -o main.o
 
 #3. linkar tots els fitxer objectes i les llibreries
-g++ -Ofast -w -zmuldefs -o main common.o nn-main.o -L/usr/local/cuda/lib64 -lcudart -lrt -lm
+g++ -Ofast -w -zmuldefs -o main common.o main.o -L/usr/local/cuda/lib64 -lcudart -lrt -lm
 
 echo -e "\nExecutant\n"
 if [ "$1" = "-prof" ]; then
