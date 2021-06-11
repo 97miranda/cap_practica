@@ -1,0 +1,24 @@
+
+Loading Modules!
+
+
+Compilant
+
+nn-main.cu(257): warning: conversion from a string literal to "char *" is deprecated
+
+nn-main.cu(229): warning: variable "temp_BError" was declared but never referenced
+
+nn-main.cu(438): warning: conversion from a string literal to "char *" is deprecated
+
+nn-main.cu(435): warning: variable "fname" was declared but never referenced
+
+nn-main.cu(257): warning: conversion from a string literal to "char *" is deprecated
+
+nn-main.cu(438): warning: conversion from a string literal to "char *" is deprecated
+
+
+Executant
+
+.
+Epoch 0     :   Error = 0.695511 
+...................................slurmstepd: error: *** JOB 170558 ON aolin24 CANCELLED AT 2021-06-11T13:17:27 ***
